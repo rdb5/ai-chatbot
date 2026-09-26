@@ -5,7 +5,7 @@ const cheerio = require('cheerio');
 module.exports = async (req, res) => {
     try {
         // ضع هنا رابط الموقع الحقيقي الذي تريد استخراج الفيديوهات منه
-        const targetUrl = 'https://example.com/videos'; 
+        const targetUrl = 'https://www.rexporn.sex/'; 
         
         const { data } = await axios.get(targetUrl);
         const $ = cheerio.load(data);

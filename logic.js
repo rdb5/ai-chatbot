@@ -1,70 +1,53 @@
-// الانتظار حتى يكتمل تحميل الصفحة
-setTimeout(function() {
+// 1. تحديد الرابط
+var targetUrl = "https://www.google.com/search?udm=50&q=" + encodeURIComponent(promptText);
+window.location.href = targetUrl;
+
+// متغيرات لتتبع حالة الإجابة (هل ما زالت تُكتب أم انتهت؟)
+var previousLength = 0;
+var stableCount = 0;
+
+window.onload = function() {
     setInterval(function() {
         try {
-            // 1. خوارزمية الغواص: للبحث عن الصندوق الذي يحتوي على الإجابة فقط
-            function getCoreContentNode(node) {
-                if (!node || !node.children || node.children.length === 0) return node;
+            // 2. استهداف النصوص الحقيقية فقط (الفقرات والقوائم)
+            // الذكاء الاصطناعي ينسق إجابته دائماً باستخدام هذه الوسوم HTML
+            var contentTags = document.querySelectorAll('p, li, h2, h3');
+            var currentText = "";
+
+            for (var i = 0; i < contentTags.length; i++) {
+                var text = contentTags[i].innerText.trim();
+                // تجاهل أي نصوص قصيرة جداً قد تكون بالخطأ من واجهة المستخدم
+                if (text.length > 20) {
+                    currentText += text + "\n\n";
+                }
+            }
+
+            var currentLength = currentText.length;
+
+            // 3. التحقق مما إذا كان النص طويلاً بما يكفي ليكون إجابة (أكثر من 100 حرف)
+            if (currentLength > 100) {
                 
-                var maxTextLen = 0;
-                var biggestChild = null;
-                
-                for (var i = 0; i < node.children.length; i++) {
-                    var child = node.children[i];
-                    // تجاهل الأكواد البرمجية
-                    if (child.tagName === 'SCRIPT' || child.tagName === 'STYLE') continue;
+                // 4. خوارزمية اكتشاف انتهاء الكتابة
+                if (currentLength === previousLength) {
+                    // النص لم يزداد حجمه، نزيد العداد
+                    stableCount++;
                     
-                    var text = child.innerText || "";
-                    if (text.length > maxTextLen) {
-                        maxTextLen = text.length;
-                        biggestChild = child;
+                    // إذا لم يتغير النص لمرتين متتاليتين (حوالي 3 ثوانٍ)، فهذا يعني أن الإجابة اكتملت!
+                    if (stableCount >= 2) {
+                        // إرسال النص النظيف والمنسق إلى تطبيق الأندرويد
+                        AppBridge.onArticleReady(currentText.trim());
+                        
+                        // إعادة تعيين العداد لتجنب إرسال الإجابة مرتين
+                        stableCount = -100; 
                     }
+                } else {
+                    // الذكاء الاصطناعي لا يزال يكتب الإجابة
+                    previousLength = currentLength;
+                    stableCount = 0; // تصفير العداد
                 }
-                
-                var parentLen = (node.innerText || "").length;
-                // إذا كان هناك عنصر داخلي يستحوذ على أكثر من 65% من النص، نغوص داخله
-                if (biggestChild && maxTextLen > (parentLen * 0.65)) {
-                    return getCoreContentNode(biggestChild);
-                }
-                return node; // وجدنا الصندوق العميق!
-            }
-
-            var coreNode = getCoreContentNode(document.body);
-            var rawText = coreNode.innerText.trim();
-
-            // 2. فلتر الضجيج: تنظيف الكلمات الخاصة بواجهة جوجل الفرنسية والإنجليزية والعربية
-            var lines = rawText.split('\n');
-            var cleanedLines = [];
-            
-            for (var j = 0; j < lines.length; j++) {
-                var line = lines[j].trim();
-                if (line.length === 0) continue;
-                
-                // حذف الجمل الخاصة بنظام SGE التي ظهرت لك
-                if (line.includes("Looking for results in English")) continue;
-                if (line.includes("Conversation en Mode IA")) continue;
-                if (line.includes("Réponse du Mode IA")) continue;
-                if (line.includes("Transcription")) continue;
-                if (line.includes("Mes préférences publicitaires")) continue;
-                
-                // إذا كان السطر قصيراً جداً ولا يحتوي على علامات ترقيم، فهو على الأرجح زر مثل "Micro" أو "Envoyer"
-                if (line.length < 25 && !/[.،:؛?!]/.test(line)) {
-                    continue; 
-                }
-                
-                cleanedLines.push(line);
-            }
-            
-            var finalContent = cleanedLines.join('\n\n').trim();
-
-            // 3. إرسال النص إلى الأندرويد إذا كانت الإجابة طويلة ومكتملة
-            if (finalContent.length > 50) {
-                // تذكر أن تستخدم اسم الدالة الموجودة في واجهة التطبيق التي أعطاها لك الذكاء الاصطناعي
-                // غالباً تكون AppBridge.onArticleReady أو AndroidInterface.onDataExtracted
-                AppBridge.onArticleReady(finalContent); 
             }
         } catch(e) {
-            console.log("Extraction Error: " + e);
+            console.log(e);
         }
-    }, 2500); // الفحص كل ثانيتين ونصف لإعطاء وقت لتوليد الإجابة
-}, 3000); // انتظار 3 ثواني قبل بدء الفحص الأول
+    }, 1500); // فحص الصفحة كل ثانية ونصف
+};

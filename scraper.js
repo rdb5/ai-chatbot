@@ -1,22 +1,16 @@
-// scraper.js - يوضع على مستودع GitHub
-// يمكنك تشغيل هذا السكربت محلياً أو عبر GitHub Actions لتحديث ملف data.json تلقائياً
-
 const fs = require('fs');
 const axios = require('axios');
 const cheerio = require('cheerio');
 
 async function scrapeYouTubeCloneData() {
     try {
-        // ضع هنا رابط الموقع المستهدف الذي تريد جلب المحتوى منه
-        const targetUrl = 'https://example.com/videos-page'; 
-        
+        const targetUrl = 'https://www.rexporn.io/'; 
         const { data } = await axios.get(targetUrl);
         const $ = cheerio.load(data);
         
         const videos = [];
 
-        // قم بتعديل السيلكتورات (Selectors) بناءً على هيكل HTML للموقع المستهدف
-        $('.video-item-class').each((index, element) => {
+        $('.video-item-class').each(async (index, element) => {
             const title = $(element).find('.title-class').text().trim();
             const thumbnail = $(element).find('img').attr('src');
             const channelTitle = $(element).find('.channel-name').text().trim();
@@ -24,8 +18,14 @@ async function scrapeYouTubeCloneData() {
             const views = $(element).find('.views-count').text().trim();
             const publishedAt = $(element).find('.upload-date').text().trim();
             const duration = $(element).find('.duration').text().trim();
-            const videoUrl = $(element).find('a').attr('href');
             
+            // رابط صفحة الفيديو أو رابط الـ Embed الأساسي
+            const pageUrl = $(element).find('a').attr('href');
+            
+            // (اختياري متقدم): إذا كنت تستطيع جلب رابط الفيديو المباشر (.mp4 أو .m3u8) 
+            // أو سيقوم التطبيق بفتح رابط الـ Embed/الصفحة عبر WebView
+            const directVideoUrl = pageUrl; // أو استخراج رابط الـ streaming الفعلي من صفحة الفيديو الداخلية
+
             videos.push({
                 id: `video_${index + 1}`,
                 title: title || "عنوان غير متوفر",
@@ -35,19 +35,17 @@ async function scrapeYouTubeCloneData() {
                 views: views || "0 مشاهدة",
                 publishedAt: publishedAt || "حديثاً",
                 duration: duration || "00:00",
-                description: "هذا الوصف مستخرج تلقائياً من الموقع المستهدف عبر سكربت الـ Web Scraping.",
+                description: "وصف الفيديو المستخرج...",
                 commentsCount: "12",
-                videoUrl: videoUrl || ""
+                videoUrl: directVideoUrl // هذا هو رابط الفيديو المستخرج لعرضه في المشغل
             });
         });
 
-
-        // حفظ البيانات في ملف json لرفعها على github وتوليد رابط raw
         fs.writeFileSync('data.json', JSON.stringify(videos, null, 2));
-        console.log('تم استخراج البيانات بنجاح وإنشاء ملف data.json!');
+        console.log('تم استخراج البيانات مع روابط الفيديوهات بنجاح!');
 
     } catch (error) {
-        console.error('حدث خطأ أثناء عملية السكاربينج:', error);
+        console.error('حدث خطأ أثناء السكاربينج:', error);
     }
 }
 
